@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Diagnóstico de Fallas — CPN</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0f1117;--bg2:#181c26;--bg3:#1e2333;
+    --border:#2a3048;--border2:#3a4464;
+    --text:#e8eaf6;--text2:#8892b0;--text3:#4a5478;
+    --accent:#4f8ef7;--accent-dim:#1a2d5a;
+    --accent2:#f7a24f;--accent2-dim:#3a2510;
+    --green:#4fd1a0;--green-dim:#0d2e22;
+    --red:#f74f6a;--red-dim:#2e0d15;
+    --amber:#f7c94f;--amber-dim:#2e220d;
+    --purple:#a78bfa;--purple-dim:#2d1f5e;
+    --mono:'IBM Plex Mono',monospace;
+    --sans:'IBM Plex Sans',sans-serif;
+    --header-h:52px;--nav-h:52px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;display:flex;flex-direction:column}
+
+  /* HEADER */
+  .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:10px;height:var(--header-h);flex-shrink:0;z-index:200}
+  .header-badge{background:var(--accent);color:#fff;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.08em;padding:3px 7px;border-radius:3px;flex-shrink:0}
+  .header-titles{flex:1;min-width:0}
+  .header-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .header-sub{font-size:11px;color:var(--text2);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ies-badge{background:var(--red-dim);border:1px solid var(--red);color:var(--red);font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;flex-shrink:0;white-space:nowrap}
+  .edit-toggle-btn{background:var(--purple-dim);border:1px solid var(--purple);color:var(--purple);font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:all .15s}
+  .edit-toggle-btn:hover{background:var(--purple);color:#fff}
+  .edit-toggle-btn.active{background:var(--purple);color:#fff}
+
+  /* BODY */
+  .app-body{flex:1;display:flex;overflow:hidden}
+
+  /* SIDEBAR */
+  .sidebar{width:260px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+  .sidebar-scroll{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:6px}
+  .sidebar-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding:0 8px;margin-bottom:4px;margin-top:8px}
+  .sidebar-label:first-child{margin-top:0}
+
+  /* SEARCH */
+  .search-wrap{position:relative;margin-bottom:4px}
+  .search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+  .search-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px 8px 32px;border-radius:6px;outline:none;transition:border-color .15s}
+  .search-input:focus{border-color:var(--accent)}
+  .search-input::placeholder{color:var(--text3)}
+
+  /* MACHINE BTNS */
+  .machine-btn{width:100%;text-align:left;background:transparent;border:1px solid var(--border);color:var(--text2);font-family:var(--sans);font-size:12px;padding:9px 10px;border-radius:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:9px;line-height:1.3}
+  .machine-btn:hover{background:var(--bg3);border-color:var(--border2);color:var(--text)}
+  .machine-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+  .machine-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .dot-rdc1{background:var(--accent)}.dot-rdc2{background:var(--accent2)}
+  .machine-tag{font-family:var(--mono);font-size:10px;font-weight:500;display:block}
+  .machine-name{font-size:10px;opacity:.7;display:block}
+
+  /* AREA PILLS */
+  .area-pill{background:transparent;border:none;color:var(--text2);font-family:var(--sans);font-size:12px;padding:6px 10px;border-radius:5px;cursor:pointer;text-align:left;transition:all .12s;display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%}
+  .area-pill:hover{background:var(--bg3);color:var(--text)}
+  .area-pill.active{background:var(--bg3);color:var(--text);border-left:2px solid var(--accent);padding-left:8px}
+  .area-count{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--bg);padding:1px 5px;border-radius:8px;flex-shrink:0}
+
+  /* MAIN */
+  .main{flex:1;overflow-y:auto;padding:20px 22px;min-width:0}
+
+  /* MOBILE NAV */
+  .mobile-nav{display:none}
+
+  /* DRAWER */
+  .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300}
+  .drawer{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border2);border-radius:16px 16px 0 0;z-index:400;transform:translateY(100%);transition:transform .3s ease;max-height:75vh;display:flex;flex-direction:column}
+  .drawer.open{transform:translateY(0)}
+  .drawer-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+  .drawer-title{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:10px 16px 8px;flex-shrink:0}
+  .drawer-scroll{overflow-y:auto;padding:0 12px 24px;flex:1}
+  .drawer-machine-btns{display:flex;gap:8px;margin-bottom:12px}
+  .drawer-machine-btns .machine-btn{flex:1;justify-content:center;text-align:center;flex-direction:column;gap:2px;padding:10px 6px}
+  .drawer-area-list{display:flex;flex-direction:column;gap:3px}
+
+  /* BREADCRUMB */
+  .breadcrumb{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+  .breadcrumb span{color:var(--text2)}.breadcrumb .sep{color:var(--text3)}
+
+  /* AREA TITLE */
+  .area-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:2px}
+  .area-machine{font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:14px}
+
+  /* STAT BAR */
+  .stat-bar{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .stat{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--text2)}
+  .stat strong{color:var(--text);font-size:13px}
+
+  /* PROBLEM CARDS */
+  .problems-grid{display:flex;flex-direction:column;gap:10px}
+  .problem-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s}
+  .problem-card:hover{border-color:var(--border2)}
+  .problem-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;-webkit-user-select:none}
+  .problem-code{font-family:var(--mono);font-size:11px;font-weight:500;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:2px 6px;border-radius:3px;flex-shrink:0;min-width:32px;text-align:center}
+  .problem-title{font-size:13px;font-weight:500;color:var(--text);flex:1;line-height:1.4}
+  .problem-toggle{color:var(--text3);font-size:15px;flex-shrink:0;transition:transform .2s,color .15s}
+  .problem-card.open .problem-toggle{transform:rotate(180deg);color:var(--accent)}
+  .problem-card.open .problem-code{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+  .problem-body{display:none;padding:0 14px 14px;border-top:1px solid var(--border)}
+  .problem-card.open .problem-body{display:block}
+
+  /* CAUSES/SOLUTIONS */
+  .causes-solutions{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .col-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+  .col-label.causes{color:var(--amber)}.col-label.solutions{color:var(--green)}
+  .cause-item,.solution-item{display:flex;align-items:flex-start;gap:7px;padding:7px 9px;border-radius:5px;margin-bottom:4px;font-size:12px;line-height:1.5}
+  .cause-item{background:var(--amber-dim);border-left:2px solid var(--amber);color:#d4b060}
+  .solution-item{background:var(--green-dim);border-left:2px solid var(--green);color:#60c494}
+  .item-num{font-family:var(--mono);font-size:10px;font-weight:500;flex-shrink:0;opacity:.7;margin-top:1px}
+
+  /* WELCOME */
+  .welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;text-align:center;padding:20px}
+  .welcome-icon{font-size:40px;line-height:1}
+  .welcome h2{font-size:16px;font-weight:500;color:var(--text2)}
+  .welcome p{font-size:13px;color:var(--text3);max-width:300px}
+  .no-results{padding:32px 20px;text-align:center;color:var(--text3);font-size:13px}
+  mark{background:var(--accent-dim);color:var(--accent);border-radius:2px;padding:0 2px}
+
+  /* ── EDIT MODE STYLES ── */
+  .edit-mode .problem-card{border-color:var(--purple-dim)}
+  .edit-mode .problem-header{cursor:default}
+  .edit-btn{background:transparent;border:1px solid var(--purple);color:var(--purple);font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;transition:all .12s;white-space:nowrap}
+  .edit-btn:hover{background:var(--purple);color:#fff}
+
+  /* EDIT MODAL OVERLAY */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:16px}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .modal-head h3{font-size:14px;font-weight:600;color:var(--text)}
+  .modal-head-sub{font-family:var(--mono);font-size:10px;color:var(--purple);margin-top:2px}
+  .modal-close{background:transparent;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px}
+  .modal-close:hover{color:var(--text)}
+  .modal-body{overflow-y:auto;padding:16px 20px;flex:1}
+  .modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0}
+
+  /* EDIT FIELDS */
+  .field-group{margin-bottom:16px}
+  .field-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;display:block}
+  .field-input,.field-textarea{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;border-radius:6px;outline:none;transition:border-color .15s;resize:vertical}
+  .field-input:focus,.field-textarea:focus{border-color:var(--purple)}
+  .field-textarea{min-height:60px;line-height:1.5}
+
+  .items-editor{display:flex;flex-direction:column;gap:6px}
+  .item-row{display:flex;align-items:flex-start;gap:8px}
+  .item-row-num{font-family:var(--mono);font-size:11px;color:var(--text3);padding-top:9px;flex-shrink:0;width:16px;text-align:right}
+  .item-row textarea{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 9px;border-radius:5px;outline:none;resize:vertical;min-height:40px;line-height:1.5;transition:border-color .15s}
+  .item-row textarea:focus{border-color:var(--purple)}
+  .item-row-del{background:transparent;border:1px solid var(--red-dim);color:var(--red);font-size:14px;width:28px;height:28px;border-radius:4px;cursor:pointer;flex-shrink:0;margin-top:6px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+  .item-row-del:hover{background:var(--red-dim)}
+  .add-item-btn{background:transparent;border:1px dashed var(--border2);color:var(--text3);font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:5px;cursor:pointer;width:100%;text-align:center;transition:all .12s;margin-top:4px}
+  .add-item-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  .btn-save{background:var(--purple);border:none;color:#fff;font-family:var(--mono);font-size:12px;padding:8px 20px;border-radius:6px;cursor:pointer;transition:opacity .15s}
+  .btn-save:hover{opacity:.85}
+  .btn-cancel{background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:12px;padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .15s}
+  .btn-cancel:hover{border-color:var(--text2);color:var(--text)}
+  .btn-add-problem{background:transparent;border:1px dashed var(--purple);color:var(--purple);font-family:var(--mono);font-size:11px;padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .15s;width:100%;text-align:center;margin-top:4px}
+  .btn-add-problem:hover{background:var(--purple-dim)}
+  .btn-del-problem{background:transparent;border:1px solid var(--red-dim);color:var(--red);font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;transition:all .12s}
+  .btn-del-problem:hover{background:var(--red-dim)}
+
+  /* EXPORT BTN */
+  .btn-export{background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:all .15s}
+  .btn-export:hover{background:var(--green);color:#000}
+
+  /* PASSWORD MODAL */
+  .pw-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:20px}
+  .pw-modal.open{display:flex}
+  .pw-box{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:28px 24px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px}
+  .pw-title{font-size:14px;font-weight:600;color:var(--text);text-align:center}
+  .pw-sub{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center}
+  .pw-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:14px;padding:10px 12px;border-radius:6px;outline:none;text-align:center;letter-spacing:.1em;transition:border-color .15s}
+  .pw-input:focus{border-color:var(--purple)}
+  .pw-input.error{border-color:var(--red);animation:shake .3s}
+  .pw-btn{background:var(--purple);border:none;color:#fff;font-family:var(--mono);font-size:13px;padding:10px;border-radius:6px;cursor:pointer;width:100%;transition:opacity .15s}
+  .pw-btn:hover{opacity:.85}
+  .pw-error{color:var(--red);font-family:var(--mono);font-size:11px;text-align:center;min-height:16px}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+  /* RESPONSIVE */
+  @media(max-width:680px){
+    :root{--header-h:48px}
+    html,body{overflow:auto;height:auto}
+    .app-body{overflow:visible}
+    .sidebar{display:none}
+    .main{padding:14px 14px 100px;overflow:visible}
+    .mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border2);height:var(--nav-h);z-index:200;align-items:stretch}
+    .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:6px 4px;border-right:1px solid var(--border);transition:all .12s}
+    .nav-btn:last-child{border-right:none}
+    .nav-btn:active{background:var(--bg3)}
+    .nav-btn .nav-icon{font-size:18px;line-height:1}
+    .nav-btn.active-machine{color:var(--accent2)}
+    .nav-btn.active-area{color:var(--accent)}
+    .nav-btn.search-active{color:var(--green)}
+    .nav-btn.edit-active{color:var(--purple)}
+    .drawer-overlay{display:block;opacity:0;pointer-events:none;transition:opacity .25s}
+    .drawer-overlay.open{opacity:1;pointer-events:auto}
+    .causes-solutions{grid-template-columns:1fr}
+    .ies-badge{display:none}
+    .header-sub{display:none}
+    .area-title{font-size:15px}
+    .problem-title{font-size:12px}
+    .mobile-search-bar{padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:var(--header-h);z-index:150;display:none}
+    .mobile-search-bar.visible{display:block}
+    .edit-toggle-btn{font-size:9px;padding:2px 7px}
+    .btn-export{font-size:9px;padding:2px 7px}
+  }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD MODAL -->
+<div class="pw-modal" id="pwModal">
+  <div class="pw-box">
+    <div class="pw-title">🔒 Modo Editor</div>
+    <div class="pw-sub">Ingresa la contraseña de administrador</div>
+    <input type="password" class="pw-input" id="pwInput" placeholder="••••••••••••" autocomplete="off">
+    <div class="pw-error" id="pwError"></div>
+    <button class="pw-btn" onclick="checkPassword()">Entrar</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3 id="modalTitle">Editar problema</h3>
+        <div class="modal-head-sub">✏ MODO EDITOR</div>
+      </div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <span class="header-badge">CPN</span>
+  <div class="header-titles">
+    <div class="header-title">Diagnóstico de Fallas</div>
+    <div class="header-sub">Consumer Packaging Nava · Nava, Coahuila</div>
+  </div>
+  <button class="btn-export" id="exportBtn" style="display:none" onclick="exportHTML()">⬇ Exportar</button>
+  <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEditMode()">✏ Editar</button>
+  <div class="ies-badge">⚠ Aplicar IES antes de intervenir</div>
+</header>
+
+<!-- MOBILE SEARCH BAR -->
+<div class="mobile-search-bar" id="mobileSearchBar">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" class="search-input" id="searchInputMobile" placeholder="Buscar problema o causa...">
+  </div>
+</div>
+
+<div class="app-body">
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-scroll">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="search-input" id="searchInputDesktop" placeholder="Buscar problema o causa...">
+      </div>
+      <div class="sidebar-label">Máquina</div>
+      <button class="machine-btn active" onclick="selectMachine('rdc2')" id="btn-rdc2">
+        <span class="machine-dot dot-rdc2"></span>
+        <span><span class="machine-tag">RDC2</span><span class="machine-name">MWU G-Grafix 15000</span></span>
+      </button>
+      <button class="machine-btn" onclick="selectMachine('rdc1')" id="btn-rdc1">
+        <span class="machine-dot dot-rdc1"></span>
+        <span><span class="machine-tag">RDC1</span><span class="machine-name">SRPACK INOVA BP1628</span></span>
+      </button>
+      <div class="sidebar-label" style="margin-top:12px">Área / Sección</div>
+      <div id="areaList"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainContent"></main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <button class="nav-btn active-machine" id="navMachine" onclick="openDrawer('machine')">
+    <span class="nav-icon">⚙</span><span id="navMachineLabel">RDC2</span>
+  </button>
+  <button class="nav-btn" id="navArea" onclick="openDrawer('area')">
+    <span class="nav-icon">📋</span><span id="navAreaLabel">Sección</span>
+  </button>
+  <button class="nav-btn" id="navSearch" onclick="toggleMobileSearch()">
+    <span class="nav-icon">🔍</span><span>Buscar</span>
+  </button>
+  <button class="nav-btn" id="navEdit" onclick="toggleEditMode()">
+    <span class="nav-icon">✏</span><span>Editar</span>
+  </button>
+  <button class="nav-btn" onclick="alert('⚠ IES: Colocar máquina en estado SEGURO y conservar la llave consigo antes de cualquier intervención.')">
+    <span class="nav-icon" style="color:var(--red)">⚠</span><span style="color:var(--red)">IES</span>
+  </button>
+</nav>
+
+<!-- DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title" id="drawerTitle">Seleccionar</div>
+  <div class="drawer-scroll" id="drawerContent"></div>
+</div>
+
+<script>
+// ── DATABASE ──
+const DB_DEFAULT = {
+  rdc2:{
+    label:"RDC2 — MWU G-Grafix 15000",tag:"RDC2",
+    manual:"Manual Operación y Seguridad · doc# 454967",
+    areas:{
+      "Alimentador":[
+        {code:"A",prob:"La hoja no se alimenta.",causas:["Compuertas de alimentación (topes) demasiado cerrados.","Borde de entrada combado atascado.","Vacío insuficiente.","Correas de alimentación no se elevan.","Punto de presión del rodillo demasiado suelto.","Hojas húmedas."],soluciones:["Elevar las compuertas de alimentación.","Retirar hojas combadas.","Cerrar/tapar pórticos de vacío no cubiertos. Revisar bolsas de polvo.","Revisar mecánica y eléctricamente el conjunto de elevación.","Apretar el punto de presión del rodillo.","Retirar las hojas húmedas."]},
+        {code:"B",prob:"La hoja se alimenta en forma oblicua.",causas:["Compuerta de alimentación (topes) muy alta o baja.","Combado ascendente en el borde de la hoja.","Desechos en un lado de la mesa/compuerta.","Vacío insuficiente en un lado de la mesa."],soluciones:["Ajustar la compuerta de alimentación.","Abrir deflectores externos para aplanar.","Revisar y eliminar desechos/residuos.","Revisar y eliminar cualquier bloqueo de vacío."]},
+        {code:"C",prob:"Se alimentan dos hojas a la vez.",causas:["Compuertas de alimentación (topes) demasiado elevadas."],soluciones:["Bajar las compuertas de alimentación."]},
+        {code:"D",prob:"La hoja se resbala.",causas:["Presión de rodillo de alimentación demasiado abierto.","Correas desgastadas.","Vacío insuficiente.","Demasiadas hojas en la tolva.","Correa no entra bien en contacto con la hoja."],soluciones:["Cerrar el punto de presión.","Reemplazar todas las correas.","Cerrar/tapar pórticos de vacío no cubiertos. Revisar bolsas de polvo.","Retirar algunas hojas.","Revisar desgaste de correa y/o mecanismo de elevación."]},
+        {code:"E",prob:"La hoja no se alimenta — correa permanece sobre superficie.",causas:["Correa permanece por encima de la superficie entre ciclos."],soluciones:["Usar aspiradora para retirar polvo alrededor y debajo de las correas y el mecanismo de elevación."]}
+      ],
+      "Unidad de Impresión":[
+        {code:"A",prob:"La impresión no se registra.",causas:["Ambos módulos perdieron control de hoja.","Faltan bandas de tiro.","Collarines de tiro mal posicionados.","Collarines muy apretados o sueltos.","Collarines no graduados.","Vacío incorrecto."],soluciones:["Revisar hoja problemática en alimentación y en sección de impresión.","Colocar bandas de tiro en cilindro de impresión.","Posicionar collarines correctamente.","Ajustar collarines según necesidad.","Colocar collarines correctamente aumentando presión levemente.","Seleccionar/ajustar el vacío correcto."]},
+        {code:"B",prob:"Se imprime en forma oblicua.",causas:["Primer módulo perdió control de hoja.","Faltan bandas de tiro o hay solo una.","Sin collarines de tiro o solo uno.","Collarines muy apretados o sueltos.","Copia de impresión no equilibrada.","Desgaste disparejo en cubiertas de collarines.","Punto de presión collarín menor que sección anterior.","Sin vacío o insuficiente."],soluciones:["Revisar hoja en alimentación y sección de impresión.","Colocar ambas bandas de tiro.","Ajustar/colocar ambos collarines.","Ajustar los collarines.","Reposicionar bandas de tiro; añadir en lado opuesto.","Reemplazar cubiertas de collarines.","Apretar el punto de presión.","Revisar filtros, motor y succión de vacío."]},
+        {code:"C",prob:"La impresión no está centrada.",causas:["Grabado no centrado.","Línea central de grabado mal identificada.","Ajustes laterales del cilindro no regresaron a '0'."],soluciones:["Centrar grabado.","Revisar la marca de línea central.","Resetear ajustes laterales a '0' al cambiar pedido."]},
+        {code:"D",prob:"Flujo de retorno de tinta lento o se detiene.",causas:["Mangueras o embudos obstruidos con polvo/tinta seca.","Cámara de tinta y líneas obstruidas."],soluciones:["Limpiar (al menos una vez por semana).","Limpiar cámara y líneas de retorno."]},
+        {code:"E",prob:"Se lanza tinta sobre cilindro a alta velocidad.",causas:["Demasiado flujo de tinta.","Cuchilla emparejadora (rasqueta) dañada."],soluciones:["Reducir el flujo de tinta.","Cambiar la cuchilla emparejadora (rasqueta)."]},
+        {code:"F",prob:"La sección no cierra.",causas:["Los engranajes no están sincronizados."],soluciones:["Fijar en '0' los indicadores de cuadrante de sincronización en todas las secciones."]},
+        {code:"G",prob:"La máquina no se inicia — luz DETECTOR DE TINTA encendida.",causas:["Se acabó la tinta.","Sin flujo o flujo insuficiente para cubrir rodillo anilox."],soluciones:["Llenar el depósito de tinta.","Limpiar mangueras obstruidas. Ajustar viscosidad de tinta."]},
+        {code:"H",prob:"Mancha de tinta.",causas:["Demasiada tinta en grabado.","Grabado sucio.","Tinta no se seca.","Viscosidad muy espesa.","La hoja se resbala."],soluciones:["Revisar presión entre cuchilla emparejadora (rasqueta)/anilox.","Limpiar grabado.","Reemplazar tinta; usar menor viscosidad; revisar pH.","Reducir la viscosidad.","Revisar ubicaciones e impresiones del rodillo de entrada."]},
+        {code:"I",prob:"No hay suficiente cobertura de tinta.",causas:["La tinta forma espuma.","Rodillo anilox desgastado o sucio.","Sin tinta en cámara de tinta.","Grabados/Cliché con calibre disparejo."],soluciones:["Añadir inhibidor de espuma (1 taza por 20 L).","Reemplazar o limpiar el rodillo anilox.","Revisar sistema de circulación (bomba, mangueras, filtros).","Revisar calibre; aumentar en áreas bajas."]},
+        {code:"J",prob:"Variaciones en el registro de impresión.",causas:["Grabados/Cliché suelto.","Presión de rodillo contra incorrecta.","Ajuste de vacío incorrecto."],soluciones:["Apretar los grabados firmemente.","Revisar el ajuste.","Revisar ajuste; generalmente aumentar vacío corrige el problema."]},
+        {code:"K",prob:"Mala calidad de impresión.",causas:["Variación en calibre de grabado."],soluciones:["Reemplazar grabado."]}
+      ],
+      "Cortadora a Troquel":[
+        {code:"A",prob:"Desgaste de cubiertas excesivo.",causas:["Demasiada penetración entre troquel y tambor de yunque.","El tambor de yunque no oscila.","Rotación incorrecta de la cubierta."],soluciones:["Revisar ajuste de la fuerza de impresión.","Revisar CNC y el variador de oscilación.","Corregir si fuese necesario."]},
+        {code:"B",prob:"Registro incorrecto.",causas:["Faltan bandas de tiro.","Bandas de tiro desgastadas."],soluciones:["Instalar bandas de tiro.","Reemplazar las bandas de tiro."]},
+        {code:"C",prob:"Hendidos agrietados.",causas:["Caucho al lado de la pleca no es eficaz.","Hoja quebradiza.","Pleca mal asentada.","Presión de corte excesiva."],soluciones:["Usar caucho firme/sólido (45-55 durómetros) apretado contra pleca.","Reemplazar por hoja de calidad o agregar humedad.","Reasentar la pleca; verificar altura correcta.","Reducir presión de corte. Recortar/girar cubiertas del yunque."]},
+        {code:"D",prob:"Corte a troquel incompleto.",causas:["Bordes de cuchilla/pleca dañados.","Juntas mal hechas causan mellas.","Yunque defectuoso."],soluciones:["Reemplazar o reparar plecas de corte dañadas.","Corregir uniones entre reglas.","Corregir si fuese necesario."]},
+        {code:"E",prob:"Extracción convencional incompleta.",causas:["Caucho de eyección mal posicionado.","Caucho de extracción incorrecto o insuficiente.","Corte a troquel incompleto.","Presión de corte insuficiente."],soluciones:["Colocar caucho a 25-38 mm de pleca de corte.","Reemplazar caucho.","Ver problema 'Corte a troquel incompleto'.","Aumentar presión de corte. Recortar/girar cubiertas del yunque."]},
+        {code:"F",prob:"Pérdida de estabilidad dimensional.",causas:["Faltan bandas de tiro.","Pieza de corte penetra muy profundo.","Yunques disparejos."],soluciones:["Revisar y corregir bandas de tiro.","Revisar ajuste de presión de corte.","Corregir si fuese necesario."]},
+        {code:"G",prob:"Registro difícil — tambor se detiene más allá del punto seleccionado.",causas:["Frenos del motor de registro necesitan ajuste."],soluciones:["Mantenimiento: consultar Manual de Mantenimiento Preventivo y ajustar el freno del motor."]},
+        {code:"H",prob:"El yunque no oscila.",causas:["Falla de componente en el sistema de oscilación."],soluciones:["Revisar componentes del sistema: solenoides, relés, interruptores, etc."]},
+        {code:"I",prob:"La máquina no se cierra correctamente.",causas:["Los engranajes en la línea no están sincronizados."],soluciones:["Sincronizar los engranajes conforme al manual."]},
+        {code:"J",prob:"Manchas de tinta en hojas / transferencia a cubiertas del yunque.",causas:["Tinta húmeda."],soluciones:["Ajustar tinta para que seque más rápido. Cambiar a papel más absorbente. Usar secadores flexo después de imprimir."]}
+      ]
+    }
+  },
+  rdc1:{
+    label:"RDC1 — SRPACK INOVA BP1628",tag:"RDC1",
+    manual:"Manual Operación Flexo Printer Slotter Diecutter",
+    areas:{
+      "Alimentador (Feeder)":[
+        {code:"1",prob:"La hoja se alimenta desviada.",causas:["En ambos extremos, el gap entre rodillo de alimentación superior e inferior no es igual.","El gap entre la compuerta de alimentación y la mesa de alimentación es muy pequeño.","El gap entre las dos compuertas laterales y la mesa de alimentación no es igual.","La fuerza de presión entre los dos rodillos de alimentación es muy pequeña.","La redondez del rodillo de alimentación (hule) no es buena.","Los bordes de la hoja no están cerca de la compuerta de alimentación y la compuerta lateral.","La válvula de viento del alimentador está ajustada de forma incorrecta.","La capacidad de succión auxiliar de la mesa de alimentación no es suficiente."],soluciones:["Ajustar el ajustador excéntrico para obtener el mismo gap en ambos extremos.","Ajustar la compuerta de alimentación; el gap debe ser igual a 1.6 veces el grosor de la hoja.","Ajustar la compuerta lateral de alimentación para obtener el mismo gap.","Ajustar el ajustador excéntrico para aumentar la fuerza de presión.","Reparar o cambiar el rodillo de alimentación de hule.","Ajustar la compuerta de alimentación y la compuerta lateral.","Ajustar la válvula de viento a la posición adecuada.","Ajustar la capacidad de succión de la mesa de alimentación."]},
+        {code:"2",prob:"Cartón aplastado.",causas:["El gap entre los rodillos de alimentación superior e inferior es muy pequeño.","La intensidad del cartón es muy débil.","La superficie de hule del rodillo de alimentación está envejecida y perdió elasticidad."],soluciones:["Ajustar el gap.","Cambiar cartón.","Cambiar el rodillo de alimentación."]},
+        {code:"3",prob:"Vacío insuficiente.",causas:["El motor de succión no funciona normalmente.","La puerta de succión no cierra bien (fuga de aire).","La tubería de succión y el soplador están obstruidos con polvo.","El cableado del soplador está invertido."],soluciones:["Revisar el motor soplador.","Revisar la puerta de control de succión y la acción del cilindro neumático.","Remover el polvo.","Corregir el cableado."]},
+        {code:"4",prob:"Conteo incorrecto.",causas:["El ojo eléctrico del contador tiene inducción defectuosa.","El lente de inducción del ojo eléctrico del contador está contaminado.","El lente de inducción del ojo eléctrico está dañado."],soluciones:["Ajustar la distancia de inducción del contador.","Limpiar el lente de inducción y mantenerlo limpio.","Cambiar el lente de inducción."]},
+        {code:"5",prob:"Los módulos no abren/cierran.",causas:["Paro de emergencia encendido.","Desechos en la vía.","Correa transportadora muy suelta.","Protección de sobrecarga disparada.","Suministro anormal.","Switch magnético del motor de arrastre dañado.","Switch Open/Close anormal.","Circuito de control dañado.","Motor de arrastre dañado.","Switch de bloqueo de movimiento de módulos encendido."],soluciones:["Quitar paro de emergencia.","Remover desechos.","Ajustar tensión de correa.","Medir voltaje trifásico.","Cambiar switch magnético.","Verificar circuito o cambiar switch. Hablar a mantenimiento.","Hablar a mantenimiento.","Hablar a mantenimiento.","Hablar a mantenimiento.","Quitar bloqueo."]},
+        {code:"6",prob:"Motor principal no arranca.",causas:["Paro de emergencia no liberado.","Switch STOP dañado en el panel.","Circuito de control dañado."],soluciones:["Liberar el botón de emergencia.","Asegurar que la unidad móvil esté bloqueada.","Verificar circuito o cambiar switch. Llamar a mantenimiento."]},
+        {code:"7",prob:"Función de alimentación no se activa.",causas:["Contador llegó a la cantidad del pedido.","Convertidor de frecuencia en unidad alimentadora o impresora dañado."],soluciones:["Limpiar el contador.","Revisar el convertidor de frecuencia."]},
+        {code:"10",prob:"Hoja no baja bien.",causas:["Distancia entre guías laterales incorrecta."],soluciones:["Revisar distancia entre guías laterales vs especificación. Verificar verticalidad de guías."]},
+        {code:"11",prob:"Superficie del caucho superior de rodillos de alimentación está dura.",causas:["Dureza excesiva del rodillo."],soluciones:["Si la dureza es excesiva, cambiar el rodillo."]}
+      ],
+      "Unidad de Impresión (Flexo)":[
+        {code:"1",prob:"Color fuera de registro.",causas:["Gap de rueda jaladora no adecuado.","Hoja < 320 mm.","Área de impresión muy pequeña, barra guía no ajustada.","Grabado suelto.","Unidades no cerradas estrictamente.","Hoja alimentada oblicua."],soluciones:["Ajustar gap jalador.","Ajustar gap entre cilindro impresor y rodillo de impresión (contra).","Fijar barra guía.","Fijar el grabado correctamente.","Verificar que unidades cierren y bloqueen.","Revisar causa de oblicuidad en sección alimentadora."]},
+        {code:"2",prob:"Depresiones en el cartón.",causas:["Presión de impresión excesiva.","Cartón rozando con compuerta de alimentación (topes) u otro material."],soluciones:["Ajustar la presión de impresión.","Ajustar compuertas de alimentación o remover material."]},
+        {code:"3",prob:"Doble sombra o residuos de tinta.",causas:["Presión entre anilox y rodillo porta grabado, o rodillo porta grabado y cartón, no adecuada.","La tinta no es buena."],soluciones:["Ajustar presión.","Mejorar calidad de tinta. Ajustar la presión nuevamente."]},
+        {code:"4",prob:"Área blanca en el patrón.",causas:["Presión rodillo porta grabado/cartón excesiva.","Espesor de placa no uniforme.","Presión anilox/rodillo porta grabado muy pequeña.","Rodillo de impresión no paralelo."],soluciones:["Ajustar presión.","Uniformar espesor de placa.","Ajustar presión anilox.","Paralelizar rodillo de impresión."]},
+        {code:"5",prob:"Tinta insuficiente en posición fija.",causas:["Rasqueta o anilox desgastado.","Patrones del rodillo anilox tapados."],soluciones:["Reparar rodillo anilox, cambiar rasqueta.","Limpiar rodillo anilox con cepillo adecuado."]},
+        {code:"6",prob:"Fuga de tinta.",causas:["Gap entre rasqueta y anilox excesivo.","Tubo de suministro/retorno dañado.","Cámara de tinta dañada.","Tanque de tinta sin función protectora."],soluciones:["Ajustar gap.","Limpiar con cepillo suave.","Cambiar con mantenimiento.","Cambiar tanque de tinta."]},
+        {code:"7",prob:"Lavado incompleto.",causas:["Tubería obstruida, presión de agua débil.","Temperatura del agua inadecuada (debe ser 40–50°C).","Tiempo de lavado muy corto.","Sin detergente.","Tinta de mala calidad.","Hoja alimentada oblicua."],soluciones:["Limpiar tubería. Ajustar presión de agua.","Ajustar temperatura (40–50°C).","Aumentar tiempo de lavado.","Agregar detergente.","Usar mejor tinta.","Revisar alimentador."]},
+        {code:"8",prob:"Color excesivamente oscuro.",causas:["Tinta no mezclada uniformemente.","Consistencia de tinta no adecuada.","Gap rasqueta/anilox excesivo.","Rasqueta o anilox desgastado."],soluciones:["Mezclar tinta uniformemente.","Ajustar consistencia.","Aumentar gap entre rasqueta y anilox.","Reparar o reemplazar rodillo/rasqueta."]},
+        {code:"9",prob:"Depresiones en cartón (presión excesiva).",causas:["Presión de impresión muy fuerte.","Cartón rozado por compuertas de alimentación u otro material."],soluciones:["Ajustar presión.","Ajustar feed gate o remover material."]},
+        {code:"10",prob:"Color se desvanece progresivamente.",causas:["Embrague anormal.","Capacidad de bomba de tinta insuficiente.","Consistencia de tinta baja."],soluciones:["Mantenimiento o reemplazo del embrague.","Ajustar capacidad de bomba.","Ajustar consistencia de tinta."]},
+        {code:"11",prob:"Patrón borroso en detalle fino.",causas:["Presión anilox/grabado o grabado/cartón excesiva.","Viscosidad de tinta muy alta.","Grabado muy suave o sucio.","Superficie del cartón muy rugosa."],soluciones:["Ajustar presión nuevamente.","Ajustar viscosidad.","Reemplazar o lavar grabado.","Mejorar calidad del cartón."]},
+        {code:"12",prob:"Imagen alargada en dirección de avance.",causas:["Espesor de placa de impresión no adecuado.","Relación de contracción de placa no adecuada."],soluciones:["El espesor estándar total (placa + backing + film) es 7.2 mm.","La relación de contracción circunferencial es 1.5%."]},
+        {code:"13",prob:"Bomba de tinta no funciona.",causas:["Aire comprimido insuficiente.","Kit de bomba de diafragma dañado."],soluciones:["Ajustar compresor a 5.5 Kg/cm².","Cambiar kit de bomba de diafragma."]},
+        {code:"14",prob:"Tinta desbordada.",causas:["Capacidad de suministro excesiva.","Sistema de tuberías tapado.","Tuberías de ciclo rotas."],soluciones:["Reducir capacidad de suministro.","Drenar la tubería.","Dar mantenimiento a las tuberías."]},
+        {code:"15",prob:"Compensación circunferencial / reinicio no puede iniciar.",causas:["Voltaje de alimentación del embrague anormal.","Embrague dañado.","Embrague no resetea.","Conector del eje del codificador suelto.","Codificador dañado.","Switch de sobrecarga del compensador disparado.","Circuito de control apagado."],soluciones:["Verificar que voltaje sea DC-24V.","Ajustar gap o revisar embrague.","Resetear el embrague.","Revisar y fijar conector.","El codificador está dañado, reemplazar.","Resetear switch de sobrecarga.","Revisar circuito desde unidad de control a grupo de switches."]}
+      ],
+      "Cortadora a Troquel (Rotary Die Cutter)":[
+        {code:"1",prob:"Posicionamiento del troquelado impreciso.",causas:["Gap de ruedas jaladoras (Pulling Rolls) diferente en ambos lados (LO y LT).","Gap de rueda jaladora no adecuado.","Gap entre cilindro de troquel y rodillo de yunque diferente en ambos lados.","Pleca de corte suelta o el troquel está suelto."],soluciones:["Ajustar gap de rueda jaladora para igualar ambos lados.","Ajustar gap de rueda jaladora al valor adecuado.","Ajustar gaps para igualar.","Fijar la pleca de corte o el troquel."]},
+        {code:"2",prob:"Borde de troquelado rugoso / sin terminar.",causas:["Ángulo de corte incorrecto o pleca desgastada.","Gap entre cilindro de troquel y rodillo de yunque (cubiertas) muy alto.","Superficie de goma del rodillo de yunque (cubiertas) no nivelada.","Cilindro de troquel no paralelo al rodillo de yunque."],soluciones:["Amolar o reemplazar pleca.","Ajustar gap al valor adecuado.","Reparar superficie de goma.","Ajustar cilindro y rodillo para hacerlos paralelos."]},
+        {code:"3",prob:"Doble sombra o residuos de tinta.",causas:["Presión entre anilox y estéreo, o estéreo y cartón, no adecuada.","La tinta no es buena."],soluciones:["Ajustar presión.","Mejorar calidad de tinta. Ajustar presión."]},
+        {code:"4",prob:"Dimensiones del troquelado cambiaron.",causas:["Troquelado no está en la misma posición.","Algunas plecas no cortan."],soluciones:["Reducir la presión de troquelado adecuadamente.","Ajustar ganancia de posición de localización; si no mejora, cambiar las cubiertas."]}
+      ]
+    }
+  }
+};
+
+// Load from localStorage or use defaults (deep copy)
+let DB = JSON.parse(localStorage.getItem('cpn_db') || 'null') || JSON.parse(JSON.stringify(DB_DEFAULT));
+
+const PASS_HASH = btoa('S00l-ll67Lzl'); // simple obfuscation
+let editMode = false;
+let currentMachine = 'rdc2';
+let currentArea = null;
+let searchTerm = '';
+let mobileSearchVisible = false;
+let editTarget = null; // {machine, area, idx}
+
+// ── AUTH ──
+function toggleEditMode() {
+  if (editMode) { exitEditMode(); return; }
+  document.getElementById('pwModal').classList.add('open');
+  setTimeout(() => document.getElementById('pwInput').focus(), 100);
+}
+
+document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') checkPassword(); });
+
+function checkPassword() {
+  const val = document.getElementById('pwInput').value;
+  if (btoa(val) === PASS_HASH) {
+    document.getElementById('pwModal').classList.remove('open');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwError').textContent = '';
+    enterEditMode();
+  } else {
+    const inp = document.getElementById('pwInput');
+    inp.classList.add('error');
+    document.getElementById('pwError').textContent = 'Contraseña incorrecta';
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+}
+
+function enterEditMode() {
+  editMode = true;
+  document.getElementById('editToggleBtn').textContent = '✕ Salir editor';
+  document.getElementById('editToggleBtn').classList.add('active');
+  document.getElementById('navEdit').classList.add('edit-active');
+  document.getElementById('exportBtn').style.display = 'block';
+  document.getElementById('mainContent').classList.add('edit-mode');
+  if (currentArea) renderProblems(); else renderWelcome();
+}
+
+function exitEditMode() {
+  editMode = false;
+  document.getElementById('editToggleBtn').textContent = '✏ Editar';
+  document.getElementById('editToggleBtn').classList.remove('active');
+  document.getElementById('navEdit').classList.remove('edit-active');
+  document.getElementById('exportBtn').style.display = 'none';
+  document.getElementById('mainContent').classList.remove('edit-mode');
+  if (currentArea) renderProblems(); else renderWelcome();
+}
+
+// ── NAVIGATION ──
+function selectMachine(m, fromDrawer) {
+  currentMachine = m; currentArea = null;
+  document.querySelectorAll('.machine-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#btn-' + m).forEach(b => b.classList.add('active'));
+  document.getElementById('navMachineLabel').textContent = DB[m].tag;
+  document.getElementById('navAreaLabel').textContent = 'Sección';
+  renderAreas(); renderWelcome();
+  if (fromDrawer) closeDrawer();
+}
+
+function renderAreas() {
+  const list = document.getElementById('areaList');
+  list.innerHTML = '';
+  Object.entries(DB[currentMachine].areas).forEach(([area, problems]) => {
+    const btn = document.createElement('button');
+    btn.className = 'area-pill' + (area === currentArea ? ' active' : '');
+    btn.innerHTML = '<span>' + area + '</span><span class="area-count">' + problems.length + '</span>';
+    btn.onclick = () => selectArea(area);
+    list.appendChild(btn);
+  });
+}
+
+function selectArea(area, fromDrawer) {
+  currentArea = area;
+  document.querySelectorAll('.area-pill').forEach(b => {
+    b.classList.toggle('active', b.querySelector('span').textContent === area);
+  });
+  document.getElementById('navAreaLabel').textContent = area.split(' ')[0];
+  document.getElementById('navArea').classList.add('active-area');
+  renderProblems();
+  if (fromDrawer) closeDrawer();
+}
+
+function renderWelcome() {
+  document.getElementById('mainContent').innerHTML =
+    '<div class="welcome"><div class="welcome-icon">🔧</div>' +
+    '<h2>Selecciona un área</h2>' +
+    '<p>Máquina: <strong>' + DB[currentMachine].label.split('—')[1].trim() + '</strong><br>Elige la sección donde ocurre el problema.</p>' +
+    (editMode ? '<button class="btn-add-problem" onclick="openAddProblemModal()">+ Agregar problema</button>' : '') +
+    '</div>';
+}
+
+function highlight(text, term) {
+  if (!term) return text;
+  return text.replace(new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi'), '<mark>$1</mark>');
+}
+
+function renderProblems() {
+  const data = DB[currentMachine];
+  let problems = currentArea ? data.areas[currentArea] : [];
+  let problemIndices = problems.map((_,i) => i);
+
+  if (searchTerm.length >= 2) {
+    const term = searchTerm.toLowerCase();
+    const found = [];
+    const src = currentArea ? { [currentArea]: data.areas[currentArea] } : data.areas;
+    Object.values(src).forEach(probs => {
+      probs.forEach(p => {
+        if (p.prob.toLowerCase().includes(term) ||
+            p.causas.some(c => c.toLowerCase().includes(term)) ||
+            p.soluciones.some(s => s.toLowerCase().includes(term))) found.push(p);
+      });
+    });
+    problems = found; problemIndices = found.map((_,i) => i);
+  }
+
+  const areaTitle = currentArea || 'Búsqueda';
+  let html = '<div class="breadcrumb"><span>' + data.tag + '</span><span class="sep">/</span><span>' + areaTitle + '</span>' +
+    (searchTerm.length >= 2 ? '<span class="sep">/</span><span>«' + searchTerm + '»</span>' : '') + '</div>' +
+    '<div class="area-title">' + areaTitle + '</div>' +
+    '<div class="area-machine">' + data.manual + '</div>' +
+    '<div class="stat-bar">' +
+    '<div class="stat"><strong>' + problems.length + '</strong>&nbsp;problemas</div>' +
+    '<div class="stat"><strong>' + problems.reduce((a,p)=>a+p.causas.length,0) + '</strong>&nbsp;causas</div>' +
+    (editMode ? '<div class="stat" style="margin-left:auto;color:var(--purple);font-family:var(--mono);font-size:10px">✏ MODO EDITOR ACTIVO</div>' : '') +
+    '</div><div class="problems-grid">';
+
+  if (!problems.length) html += '<div class="no-results">Sin resultados para «' + searchTerm + '».</div>';
+
+  problems.forEach((p, i) => {
+    const realIdx = searchTerm.length >= 2 ? i : i;
+    const max = Math.max(p.causas.length, p.soluciones.length);
+    let causaRows = '', solRows = '';
+    for (let j = 0; j < max; j++) {
+      const c = p.causas[j] || '';
+      const s = p.soluciones[j] || '';
+      if (c) causaRows += '<div class="cause-item"><span class="item-num">' + (j+1) + '</span><span>' + highlight(c, searchTerm) + '</span></div>';
+      if (s) solRows += '<div class="solution-item"><span class="item-num">' + (j+1) + '</span><span>' + highlight(s, searchTerm) + '</span></div>';
+    }
+
+    const editBtn = editMode
+      ? '<button class="edit-btn" onclick="event.stopPropagation();openEditModal(\'' + currentMachine + '\',\'' + currentArea + '\',' + i + ')">✏ editar</button>'
+        + '<button class="btn-del-problem" onclick="event.stopPropagation();deleteProblem(\'' + currentMachine + '\',\'' + currentArea + '\',' + i + ')">✕</button>'
+      : '';
+
+    html += '<div class="problem-card' + (searchTerm.length >= 2 ? ' open' : '') + '" id="pc-' + i + '">' +
+      '<div class="problem-header" onclick="' + (editMode ? '' : 'toggleCard(\'pc-' + i + '\')') + '">' +
+      '<span class="problem-code">' + p.code + '</span>' +
+      '<span class="problem-title">' + highlight(p.prob, searchTerm) + '</span>' +
+      editBtn +
+      (editMode ? '' : '<span class="problem-toggle">▾</span>') +
+      '</div>' +
+      '<div class="problem-body"><div class="causes-solutions">' +
+      '<div><div class="col-label causes">⚠ Posibles causas</div>' + causaRows + '</div>' +
+      '<div><div class="col-label solutions">✓ Soluciones</div>' + solRows + '</div>' +
+      '</div></div></div>';
+  });
+
+  html += '</div>';
+  if (editMode && currentArea) {
+    html += '<button class="btn-add-problem" style="margin-top:10px" onclick="openAddProblemModal()">+ Agregar problema a esta sección</button>';
+  }
+
+  document.getElementById('mainContent').innerHTML = html;
+
+  // Auto-open in edit mode
+  if (editMode) {
+    problems.forEach((_, i) => {
+      const c = document.getElementById('pc-' + i);
+      if (c) c.classList.add('open');
+    });
+  }
+}
+
+function toggleCard(id) { document.getElementById(id).classList.toggle('open'); }
+
+// ── EDIT MODAL ──
+function openEditModal(machine, area, idx) {
+  editTarget = {machine, area, idx};
+  const p = DB[machine].areas[area][idx];
+  document.getElementById('modalTitle').textContent = 'Editar: ' + p.prob.substring(0,40) + (p.prob.length>40?'...':'');
+
+  let html = '<div class="field-group"><label class="field-label">Código</label>' +
+    '<input class="field-input" id="ed-code" value="' + esc(p.code) + '"></div>' +
+    '<div class="field-group"><label class="field-label">Problema / Descripción</label>' +
+    '<textarea class="field-textarea" id="ed-prob" rows="2">' + esc(p.prob) + '</textarea></div>' +
+    '<div class="field-group"><label class="field-label">Posibles causas</label>' +
+    '<div class="items-editor" id="ed-causas">';
+  p.causas.forEach((c,i) => {
+    html += '<div class="item-row"><span class="item-row-num">' + (i+1) + '</span>' +
+      '<textarea rows="2">' + esc(c) + '</textarea>' +
+      '<button class="item-row-del" onclick="delItem(\'ed-causas\',this)">✕</button></div>';
+  });
+  html += '</div><button class="add-item-btn" onclick="addItem(\'ed-causas\')">+ Agregar causa</button></div>' +
+    '<div class="field-group"><label class="field-label">Soluciones</label>' +
+    '<div class="items-editor" id="ed-sols">';
+  p.soluciones.forEach((s,i) => {
+    html += '<div class="item-row"><span class="item-row-num">' + (i+1) + '</span>' +
+      '<textarea rows="2">' + esc(s) + '</textarea>' +
+      '<button class="item-row-del" onclick="delItem(\'ed-sols\',this)">✕</button></div>';
+  });
+  html += '</div><button class="add-item-btn" onclick="addItem(\'ed-sols\')">+ Agregar solución</button></div>';
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openAddProblemModal() {
+  editTarget = {machine: currentMachine, area: currentArea, idx: -1};
+  document.getElementById('modalTitle').textContent = 'Agregar nuevo problema';
+  const html = '<div class="field-group"><label class="field-label">Código (ej: L, M, 16...)</label>' +
+    '<input class="field-input" id="ed-code" value=""></div>' +
+    '<div class="field-group"><label class="field-label">Problema / Descripción</label>' +
+    '<textarea class="field-textarea" id="ed-prob" rows="2"></textarea></div>' +
+    '<div class="field-group"><label class="field-label">Posibles causas</label>' +
+    '<div class="items-editor" id="ed-causas">' +
+    '<div class="item-row"><span class="item-row-num">1</span><textarea rows="2"></textarea>' +
+    '<button class="item-row-del" onclick="delItem(\'ed-causas\',this)">✕</button></div>' +
+    '</div><button class="add-item-btn" onclick="addItem(\'ed-causas\')">+ Agregar causa</button></div>' +
+    '<div class="field-group"><label class="field-label">Soluciones</label>' +
+    '<div class="items-editor" id="ed-sols">' +
+    '<div class="item-row"><span class="item-row-num">1</span><textarea rows="2"></textarea>' +
+    '<button class="item-row-del" onclick="delItem(\'ed-sols\',this)">✕</button></div>' +
+    '</div><button class="add-item-btn" onclick="addItem(\'ed-sols\')">+ Agregar solución</button></div>';
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('editModal').classList.add('open');
+}
+
+function addItem(containerId) {
+  const cont = document.getElementById(containerId);
+  const rows = cont.querySelectorAll('.item-row');
+  const num = rows.length + 1;
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML = '<span class="item-row-num">' + num + '</span><textarea rows="2"></textarea>' +
+    '<button class="item-row-del" onclick="delItem(\'' + containerId + '\',this)">✕</button>';
+  cont.appendChild(div);
+  renumberItems(containerId);
+  div.querySelector('textarea').focus();
+}
+
+function delItem(containerId, btn) {
+  btn.closest('.item-row').remove();
+  renumberItems(containerId);
+}
+
+function renumberItems(containerId) {
+  document.querySelectorAll('#' + containerId + ' .item-row-num').forEach((el,i) => { el.textContent = i+1; });
+}
+
+function saveEdit() {
+  const {machine, area, idx} = editTarget;
+  const code = document.getElementById('ed-code').value.trim();
+  const prob = document.getElementById('ed-prob').value.trim();
+  const causas = [...document.querySelectorAll('#ed-causas textarea')].map(t => t.value.trim()).filter(Boolean);
+  const soluciones = [...document.querySelectorAll('#ed-sols textarea')].map(t => t.value.trim()).filter(Boolean);
+
+  if (!prob) { alert('El campo Problema no puede estar vacío.'); return; }
+  if (!causas.length) { alert('Debe haber al menos una causa.'); return; }
+  if (!soluciones.length) { alert('Debe haber al menos una solución.'); return; }
+
+  const newEntry = {code: code || '?', prob, causas, soluciones};
+
+  if (idx === -1) {
+    DB[machine].areas[area].push(newEntry);
+  } else {
+    DB[machine].areas[area][idx] = newEntry;
+  }
+
+  saveDB();
+  closeEditModal();
+  renderAreas();
+  renderProblems();
+}
+
+function deleteProblem(machine, area, idx) {
+  const p = DB[machine].areas[area][idx];
+  if (!confirm('¿Eliminar el problema "' + p.prob.substring(0,50) + '"?')) return;
+  DB[machine].areas[area].splice(idx, 1);
+  saveDB();
+  renderAreas();
+  renderProblems();
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+  editTarget = null;
+}
+
+function saveDB() {
+  localStorage.setItem('cpn_db', JSON.stringify(DB));
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── EXPORT HTML ──
+function exportHTML() {
+  // Serialize current DB into the script tag and create downloadable file
+  const src = document.documentElement.outerHTML;
+  // Replace the DB_DEFAULT content with current DB so exported file has latest data
+  const exported = src.replace(
+    /const DB_DEFAULT = \{[\s\S]*?\};\s*\n\s*\/\/ Load from localStorage/,
+    'const DB_DEFAULT = ' + JSON.stringify(DB, null, 0) + ';\n// Load from localStorage'
+  );
+  const blob = new Blob([exported], {type: 'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Troubleshooting_CPN_v3.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── SEARCH ──
+function handleSearch(val) {
+  searchTerm = val.trim();
+  document.getElementById('searchInputDesktop').value = val;
+  document.getElementById('searchInputMobile').value = val;
+  if (!searchTerm) { currentArea ? renderProblems() : renderWelcome(); return; }
+  if (searchTerm.length >= 2) renderProblems();
+}
+document.getElementById('searchInputDesktop').addEventListener('input', function() { handleSearch(this.value); });
+document.getElementById('searchInputMobile').addEventListener('input', function() { handleSearch(this.value); });
+
+// ── MOBILE DRAWER ──
+function openDrawer(mode) {
+  const drawer = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const content = document.getElementById('drawerContent');
+  document.getElementById('drawerTitle').textContent = mode === 'machine' ? 'Seleccionar Máquina' : 'Seleccionar Sección — ' + DB[currentMachine].tag;
+  content.innerHTML = '';
+
+  if (mode === 'machine') {
+    const wrap = document.createElement('div');
+    wrap.className = 'drawer-machine-btns';
+    ['rdc2','rdc1'].forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'machine-btn' + (m === currentMachine ? ' active' : '');
+      btn.innerHTML = '<span class="machine-dot dot-' + m + '"></span><span><span class="machine-tag">' + DB[m].tag + '</span><span class="machine-name">' + DB[m].label.split('—')[1].trim() + '</span></span>';
+      btn.onclick = () => selectMachine(m, true);
+      wrap.appendChild(btn);
+    });
+    content.appendChild(wrap);
+  } else {
+    const list = document.createElement('div');
+    list.className = 'drawer-area-list';
+    Object.entries(DB[currentMachine].areas).forEach(([area, problems]) => {
+      const btn = document.createElement('button');
+      btn.className = 'area-pill' + (area === currentArea ? ' active' : '');
+      btn.innerHTML = '<span>' + area + '</span><span class="area-count">' + problems.length + '</span>';
+      btn.onclick = () => selectArea(area, true);
+      list.appendChild(btn);
+    });
+    content.appendChild(list);
+  }
+  overlay.classList.add('open');
+  drawer.classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+
+function toggleMobileSearch() {
+  mobileSearchVisible = !mobileSearchVisible;
+  document.getElementById('mobileSearchBar').classList.toggle('visible', mobileSearchVisible);
+  document.getElementById('navSearch').classList.toggle('search-active', mobileSearchVisible);
+  if (mobileSearchVisible) setTimeout(() => document.getElementById('searchInputMobile').focus(), 100);
+}
+
+// Touch to close drawer
+let touchStartY = 0;
+document.getElementById('drawer').addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+document.getElementById('drawer').addEventListener('touchmove', e => { if (e.touches[0].clientY - touchStartY > 60) closeDrawer(); });
+
+// Close edit modal on bg click
+document.getElementById('editModal').addEventListener('click', function(e) { if(e.target === this) closeEditModal(); });
+
+renderAreas();
+renderWelcome();
+</script>
+</body>
+</html>
